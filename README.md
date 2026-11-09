@@ -8,7 +8,8 @@ block decoder they need, the Forge map variants (`.mvar`) and the navigation mes
 
 ## Status
 
-Experimental. The API is not stable before v1.0.0; minor versions may break. Published from the
+Used in production by LevelUp since October 2026. From v1.0.0 the exported API follows semantic
+versioning: a breaking change means a new major version. Published from the
 LevelUp monorepo; versions are tagged `vX.Y.Z` in this repository.
 
 ## What it is
@@ -39,7 +40,7 @@ LevelUp monorepo; versions are tagged `vX.Y.Z` in this repository.
 ## Install
 
 ```
-go get github.com/JGtm/halo-infinite-files-reader@v0.1.0
+go get github.com/JGtm/halo-infinite-files-reader@v1.0.0
 ```
 
 Works from any Go module; no `replace` directive is needed.
@@ -80,7 +81,8 @@ GPL-3.0-only (see [`LICENSE`](LICENSE)). The vendored `ooz` decoder is GPLv3 (Po
 [`ooz/NOTICE.md`](ooz/NOTICE.md)), so this module is a GPL chain: any binary that links `himodule`
 or `ooz` must be distributed under GPL-3.0-compatible terms, and `ooz/NOTICE.md` recommends keeping
 it to offline tooling. The upstream notice says "GPLv3", not "or later", hence GPL-3.0-only for the
-whole repository. This is a summary, not legal advice.
+whole repository, including `mapvar` and `hinavmesh`, which do not import `ooz`. This is a summary, not
+legal advice.
 
 ## Contributing
 
