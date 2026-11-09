@@ -1,4 +1,7 @@
-# github.com/JGtm/LevelUp/libs/gamefiles
+# github.com/JGtm/halo-infinite-files-reader
+
+This module was extracted from the LevelUp monorepo (`github.com/JGtm/LevelUp`), which remains the
+place where it is developed; released versions are published here.
 
 Readers for the files of a local Halo Infinite installation: the `.module` archives, the Kraken
 block decoder they need, the Forge map variants (`.mvar`) and the navigation meshes.
@@ -6,7 +9,7 @@ block decoder they need, the Forge map variants (`.mvar`) and the navigation mes
 ## Status
 
 Experimental. The API is not stable before v1.0.0; minor versions may break. Published from the
-LevelUp monorepo as a Go module in a subdirectory; versions are tagged `libs/gamefiles/vX.Y.Z`.
+LevelUp monorepo; versions are tagged `vX.Y.Z` in this repository.
 
 ## What it is
 
@@ -36,11 +39,10 @@ LevelUp monorepo as a Go module in a subdirectory; versions are tagged `libs/gam
 ## Install
 
 ```
-go get github.com/JGtm/LevelUp/libs/gamefiles@v0.1.0
+go get github.com/JGtm/halo-infinite-files-reader@v0.1.0
 ```
 
-Works from any Go module; no `replace` directive is needed. (Go resolves `v0.1.0` to the
-subdirectory tag `libs/gamefiles/v0.1.0`.)
+Works from any Go module; no `replace` directive is needed.
 
 ## Example
 
@@ -74,20 +76,19 @@ not.
 
 ## License
 
-The vendored `ooz` decoder is GPLv3 (Powzix, see [`ooz/NOTICE.md`](ooz/NOTICE.md)), so this
-module is a GPL chain: any binary that links `himodule` or `ooz` must be distributed under
-GPL-3.0-compatible terms, and `ooz/NOTICE.md` recommends keeping it to offline tooling. The
-upstream notice says "GPLv3", not "or later", and this README claims no more. The other code
-(`mapvar`, `hinavmesh`, which do not import `ooz`) is AGPL-3.0, the repository license
-(`LICENSE`, `NOTICE` at the repository root). This is a summary, not legal advice.
+GPL-3.0-only (see [`LICENSE`](LICENSE)). The vendored `ooz` decoder is GPLv3 (Powzix, see
+[`ooz/NOTICE.md`](ooz/NOTICE.md)), so this module is a GPL chain: any binary that links `himodule`
+or `ooz` must be distributed under GPL-3.0-compatible terms, and `ooz/NOTICE.md` recommends keeping
+it to offline tooling. The upstream notice says "GPLv3", not "or later", hence GPL-3.0-only for the
+whole repository. This is a summary, not legal advice.
 
 ## Contributing
 
-Issues and pull requests on `github.com/JGtm/LevelUp`, with the path prefix `libs/gamefiles/`
-in the title. From the module directory: `go vet ./... && go test ./...` (exploratory probes
-sit behind the `research` build tag and are not run by default). The repository convention is French-language code
-comments and many French identifiers, so expect them in the source. Design:
-[ADR 0041](../../docs/adr/0041-go-modules-under-libs.md) (modules under `libs/`).
+Development happens in the LevelUp monorepo (`github.com/JGtm/LevelUp`, directory `libs/gamefiles/`);
+issues and pull requests are welcome there, with the path prefix `libs/gamefiles/` in the title. From
+the repository root: `go vet ./... && go test ./...` (exploratory probes sit behind the `research`
+build tag and are not run by default). The convention is French-language code comments and many
+French identifiers, so expect them in the source.
 
 ## Not affiliated
 

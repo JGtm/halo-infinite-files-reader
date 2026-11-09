@@ -1,6 +1,6 @@
 # NOTICE — origin of the test fixtures of `libs/gamefiles`
 
-This module is licensed AGPL-3.0 (see `README.md`). Its test fixtures are not source code: three Forge
+This module is licensed GPL-3.0-only (see `README.md`). Its test fixtures are not source code: three Forge
 map variants (`.mvar`), two navigation meshes (`navmesh.blob`) and a set of synthetic fuzz seeds. This page says
 where each group comes from, what it contains, and how it sits with the rule of ADR 0041 (no file
 extracted from the game installation in a brick). Nothing here is Microsoft, 343 Industries or Halo
@@ -81,7 +81,7 @@ Reading of the history for this page:
   two Cliffhanger files and the two navmesh blobs, the commits do not state the channel.
 - Their content is game content (map objects and navigation geometry of Halo Infinite maps). D5 names
   them as the exception to the rule, so the rule holds only by that exception.
-- The AGPL-3.0 licence of this module does not give rights to that content. The root `NOTICE` says it is
+- The GPL-3.0-only licence of this module does not give rights to that content. The root `NOTICE` says it is
   "not licensed for any other use".
 
 Compliance: no file of `libs/gamefiles` is recorded as read from the installation. The game-content fixtures
