@@ -1,16 +1,13 @@
 # github.com/JGtm/halo-infinite-files-reader
 
-This module was extracted from the LevelUp monorepo (`github.com/JGtm/LevelUp`), which remains the
-place where it is developed; released versions are published here.
-
 Readers for the files of a local Halo Infinite installation: the `.module` archives, the Kraken
 block decoder they need, the Forge map variants (`.mvar`) and the navigation meshes.
 
 ## Status
 
 Used in production by LevelUp since October 2026. From v1.0.0 the exported API follows semantic
-versioning: a breaking change means a new major version. Published from the
-LevelUp monorepo; versions are tagged `vX.Y.Z` in this repository.
+versioning (a breaking change means a new major version). Published as a Go module in its own
+repository; versions are tagged `vX.Y.Z`.
 
 ## What it is
 
@@ -28,13 +25,13 @@ LevelUp monorepo; versions are tagged `vX.Y.Z` in this repository.
 ## What it is not
 
 - No map catalogue: nothing here knows which module, identifier or name belongs to which map.
-- No installation discovery: you pass file paths to `himodule.Open`. (The sibling `libs/himap`
+- No installation discovery: you pass file paths to `himodule.Open`. (The sibling `github.com/JGtm/halo-infinite-map-images`
   has a `DeployRoot` helper if you want one.)
 - Not a generic tag decoder: `himodule` hands you raw tag bytes; only the `.mvar` container and
   the navmesh are interpreted here, as far as they were measured.
 - No installation file: the module ships code and small test fixtures, not the game's
   archives. You supply the installation. The fixtures are three Forge map variants and two
-  navigation meshes of the Halo service, game content kept for the tests only; `NOTICE.md`
+  navigation meshes, public files of the Halo UGC service, game content kept for the tests only; `NOTICE.md`
   says where each comes from and what rights it carries.
 
 ## Install
@@ -70,27 +67,27 @@ for _, f := range m.Files("sbsp") { // "" lists every entry
 
 ## Requirements
 
-Go 1.26.10 (`go.mod`). `himodule` and `ooz` need cgo (`CGO_ENABLED=1`) and a C++ compiler
+Go 1.26.11 (`go.mod`). `himodule` and `ooz` need cgo (`CGO_ENABLED=1`) and a C++ compiler
 (developed with mingw-w64 g++; the build flags include `-msse4.1`). `mapvar` and `hinavmesh`
 are pure Go. To use the module you need a local Halo Infinite installation; to build it you do
 not.
 
 ## License
 
-GPL-3.0-only (see [`LICENSE`](LICENSE)). The vendored `ooz` decoder is GPLv3 (Powzix, see
+GPL-3.0-only, for the module as a whole. The vendored `ooz` decoder is GPLv3 (Powzix, see
 [`ooz/NOTICE.md`](ooz/NOTICE.md)), so this module is a GPL chain: any binary that links `himodule`
 or `ooz` must be distributed under GPL-3.0-compatible terms, and `ooz/NOTICE.md` recommends keeping
 it to offline tooling. The upstream notice says "GPLv3", not "or later", hence GPL-3.0-only for the
-whole repository, including `mapvar` and `hinavmesh`, which do not import `ooz`. This is a summary, not
-legal advice.
+whole module, including `mapvar` and `hinavmesh`, which do not import `ooz`. In the LevelUp monorepo,
+the root `LICENSE` (AGPL-3.0) covers the other bricks and the application, not this module; the module
+has no `LICENSE` file of its own here. This is a summary, not legal advice.
 
 ## Contributing
 
-Development happens in the LevelUp monorepo (`github.com/JGtm/LevelUp`, directory `libs/gamefiles/`);
-issues and pull requests are welcome there, with the path prefix `libs/gamefiles/` in the title. From
-the repository root: `go vet ./... && go test ./...` (exploratory probes sit behind the `research`
-build tag and are not run by default). The convention is French-language code comments and many
-French identifiers, so expect them in the source.
+Issues and pull requests on this repository. From the module directory: `go vet ./... && go test ./...` (exploratory probes
+sit behind the `research` build tag and are not run by default). The repository convention is French-language code
+comments and many French identifiers, so expect them in the source. Design:
+[ADR 0041](../../docs/adr/0041-go-modules-under-libs.md) (modules under `libs/`).
 
 ## Not affiliated
 
