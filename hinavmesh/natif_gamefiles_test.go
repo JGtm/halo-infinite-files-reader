@@ -5,8 +5,8 @@
 //
 //	go test -tags gamefiles -count=1 ./hinavmesh/ -run Natif -v
 //
-// Racine du jeu : variable d'environnement LEVELUP_HALO_DEPLOY, sinon l'installation Xbox
-// habituelle.
+// Racine du jeu : variable d'environnement LEVELUP_HALO_DEPLOY (le dossier `deploy` de
+// l'installation), sans valeur par defaut : variable vide, test saute.
 package hinavmesh_test
 
 import (
@@ -21,14 +21,12 @@ import (
 	"github.com/JGtm/halo-infinite-files-reader/hinavmesh"
 )
 
-const deployParDefaut = "C:/XboxGames/Halo Infinite/Content/deploy"
-
 // dossierCartes rend le dossier des cartes multijoueur du module `any`, ou saute le test.
 func dossierCartes(t *testing.T) string {
 	t.Helper()
 	racine := os.Getenv("LEVELUP_HALO_DEPLOY")
 	if racine == "" {
-		racine = deployParDefaut
+		t.Skip("LEVELUP_HALO_DEPLOY non posee : la definir sur le dossier `deploy` de Halo Infinite")
 	}
 	dossier := filepath.Join(racine, "any", "levels", "multi")
 	if _, err := os.Stat(dossier); err != nil {
