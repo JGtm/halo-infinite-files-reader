@@ -38,6 +38,10 @@ refuses a resource without the `ucsh` signature (`ErrSignatureNative`), without 
 Measured on the 31 modules of `any/levels/multi`: 29 carry a mesh; `sgh_interlock` and
 `academy_tutorial` do not. See `himodule/example_navmesh_test.go`.
 
+### Connected components
+
+A mesh can hold polygons that are not part of the playable area: a Forge `navmesh.blob` includes slabs of the Forge canvas detached from the arena (on Isolation, a wide strip at the bottom), and native meshes sometimes have secondary islands or detached faces. `hinavmesh.Composantes(mesh)` groups faces that share at least one vertex and returns every group, largest ground area first (shoelace formula on the XY contour; ties go to the group holding the lowest face index). Each `Composante` carries a per-face `Garde` mask, its face count, its area and its XY/Z extent. Which groups form the arena is left to the caller: the largest group is not always the arena (on several Forge maps it is the canvas floor), so the choice needs objective anchors and the rendered material, which this package does not know. `hinavmesh.ComposantePrincipale(mesh)` is the shortcut for the largest group, with `Autres` / `AireAutres` counting the others; an arena made of two islands joined by a bridge missing from the mesh would lose its second island, which shows up there rather than silently. `(*Maillage).TrianglesDe(garde)` fans only the kept faces into triangles, ready for rasterisation. Measured: Isolation has 17 groups (largest 1427 m2, 772.6 m2 in the others), Bazaar has 17 (largest 980.7 m2, 52.9 m2 in the others).
+
 ## What it is not
 
 - No map catalogue: nothing here knows which module, identifier or name belongs to which map.
