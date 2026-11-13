@@ -146,6 +146,9 @@ func maxF(a, b float64) float64 {
 func TestComposantePrincipaleIsolation(t *testing.T) {
 	m := decodeTemoin(t, "01af558d-53ab-4f05-ba68-92d805fc6260")
 	c := ComposantePrincipale(m)
+	if comps := Composantes(m); len(comps) != 17 || comps[0].Aire < 1427.04*0.99 || comps[0].Aire > 1427.04*1.01 {
+		t.Errorf("Composantes: %d, premiere aire %.2f, 17 et 1427 attendues", len(comps), comps[0].Aire)
+	}
 	if c.Autres < 1 {
 		t.Fatalf("Autres = %d, au moins 1 attendu", c.Autres)
 	}
@@ -161,5 +164,68 @@ func TestComposantePrincipaleIsolation(t *testing.T) {
 	}
 	if mn.Y < -38.5 || mx.Y > -5 {
 		t.Errorf("emprise Y [%.2f %.2f], dans [-38.5 -5] attendu", mn.Y, mx.Y)
+	}
+}
+
+func TestComposantesOrdreEmpriseEtSomme(t *testing.T) {
+	m := deuxComposantes()
+	comps := Composantes(m)
+	if len(comps) != 2 {
+		t.Fatalf("%d composantes, 2 attendues", len(comps))
+	}
+	carre, triangle := comps[0], comps[1]
+	if carre.Faces != 2 || carre.Aire != 4 || triangle.Faces != 1 || triangle.Aire != 0.5 {
+		t.Errorf("carre %+v, triangle %+v : ordre ou aires faux", carre, triangle)
+	}
+	if carre.Min != (Point{0, 0, 0}) || carre.Max != (Point{2, 2, 0}) {
+		t.Errorf("emprise du carre %v..%v", carre.Min, carre.Max)
+	}
+	if triangle.Min != (Point{10, 10, 0}) || triangle.Max != (Point{11, 11, 0}) {
+		t.Errorf("emprise du triangle %v..%v", triangle.Min, triangle.Max)
+	}
+	if somme := carre.Aire + triangle.Aire; somme != m.AireAuSol() {
+		t.Errorf("somme des aires %v, aire totale %v", somme, m.AireAuSol())
+	}
+	if carre.Autres != 0 || carre.AireAutres != 0 {
+		t.Errorf("Autres/AireAutres reserves a ComposantePrincipale : %+v", carre)
+	}
+	// Chaque face appartient a exactement une composante.
+	for i := range m.Faces {
+		n := 0
+		for _, c := range comps {
+			if c.Garde[i] {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Errorf("face %d dans %d composantes", i, n)
+		}
+	}
+	if Composantes(&Maillage{}) != nil || Composantes(nil) != nil {
+		t.Error("maillage vide : nil attendu")
+	}
+}
+
+func TestComposantesEmpriseZ(t *testing.T) {
+	m := &Maillage{
+		Sommets: []Point{{0, 0, -1}, {1, 0, 2}, {0, 1, 0.5}},
+		Faces:   []Face{{Sommets: []int32{0, 1, 2}}},
+	}
+	c := Composantes(m)[0]
+	if c.Min.Z != -1 || c.Max.Z != 2 {
+		t.Errorf("Z %v..%v, -1..2 attendu", c.Min.Z, c.Max.Z)
+	}
+}
+
+func TestComposantesDeterministeAiresEgales(t *testing.T) {
+	m := &Maillage{
+		Sommets: []Point{{0, 0, 0}, {1, 0, 0}, {0, 1, 0}, {5, 5, 0}, {6, 5, 0}, {5, 6, 0}},
+		Faces:   []Face{{Sommets: []int32{3, 4, 5}}, {Sommets: []int32{0, 1, 2}}},
+	}
+	for i := 0; i < 50; i++ {
+		comps := Composantes(m)
+		if len(comps) != 2 || !comps[0].Garde[0] || !comps[1].Garde[1] {
+			t.Fatalf("tirage %d: ordre instable", i)
+		}
 	}
 }

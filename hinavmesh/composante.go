@@ -1,46 +1,53 @@
 package hinavmesh
 
-// composante.go — LA COMPOSANTE PRINCIPALE du maillage.
+// composante.go — LES COMPOSANTES CONNEXES du maillage.
 //
 // POURQUOI. Un maillage Forge (blob) porte aussi des dalles du CANEVAS Forge, detachees de
 // l'arene : sur Isolation, une grande bande en bas du maillage qui n'est pas du terrain
 // jouable. Les maillages natifs ont parfois des ilots secondaires (Chasm en annonce cinq) et
 // des faces detachees dans le principal. Rasteriser tout le maillage etale ces dalles dans
-// l'emprise du fond de carte. En ne gardant que la plus grande composante connexe, les dalles
-// disparaissent et l'arene reste entiere.
+// l'emprise du fond de carte. Les composantes sont donc exposees TOUTES, avec leur aire et
+// leur emprise : choisir celles qui forment l'arene demande des ancres d'objectif et la
+// matiere du rendu, que ce paquet ne connait pas. L'aire seule ne suffit pas : sur des cartes
+// Forge, la plus grande composante est le sol du canevas, pas l'arene.
 //
 // CONNEXITE. Deux faces sont reliees des qu'elles partagent UN sommet (indice commun dans
-// Maillage.Sommets), pas necessairement une arete : un seul sommet partage suffit. La
-// composante principale est celle d'aire cumulee MAXIMALE (aire au sol, lacet sur le contour
-// XY), pas celle qui compte le plus de faces. A aires egales, la composante qui contient la
-// plus petite face d'indice l'emporte : le resultat est deterministe.
+// Maillage.Sommets), pas necessairement une arete : un seul sommet partage suffit. Les
+// composantes sont triees par aire au sol decroissante (lacet sur le contour XY) ; a aires
+// egales, celle qui contient la plus petite face d'indice passe d'abord : le resultat est
+// deterministe.
 //
-// CE QUE CA COUTE. Une arene faite de deux ilots relies par un pont ABSENT du maillage
-// perdrait le second ilot. Ce n'est jamais silencieux : les composantes ecartees sont
-// comptees dans Composante.Autres et leur aire dans Composante.AireAutres, a l'appelant de
-// juger si c'est acceptable pour la carte.
+// ComposantePrincipale est le raccourci « la plus grande par aire ». CE QUE CA COUTE : une
+// arene faite de deux ilots relies par un pont ABSENT du maillage perdrait le second ilot ;
+// ce n'est jamais silencieux, les ecartees sont comptees dans Autres et AireAutres.
 
-import "math"
+import (
+	"math"
+	"sort"
+)
 
-// Composante est le resultat de ComposantePrincipale.
+// Composante est un ensemble de faces reliees par des sommets partages.
 type Composante struct {
-	// Garde dit, par indice de face de Maillage.Faces, si la face est dans la composante
-	// principale. Vide pour un maillage vide.
+	// Garde dit, par indice de face de Maillage.Faces, si la face appartient a la
+	// composante. Vide pour un maillage vide.
 	Garde []bool
-	// Faces est le nombre de faces gardees.
+	// Faces est le nombre de faces de la composante.
 	Faces int
-	// Autres est le nombre de composantes ecartees.
-	Autres int
-	// Aire est l'aire au sol de la composante principale, en m2.
+	// Aire est l'aire au sol de la composante, en m2.
 	Aire float64
-	// AireAutres est l'aire au sol cumulee des composantes ecartees, en m2.
+	// Min et Max sont l'emprise (X, Y et Z) des sommets des faces de la composante.
+	Min, Max Point
+	// Autres et AireAutres ne sont renseignes que par ComposantePrincipale : nombre et
+	// aire au sol cumulee des composantes ecartees. Nuls pour les elements de Composantes.
+	Autres     int
 	AireAutres float64
 }
 
-// ComposantePrincipale rend la plus grande composante connexe du maillage, par aire.
-func ComposantePrincipale(m *Maillage) Composante {
+// Composantes rend toutes les composantes connexes du maillage, triees par aire au sol
+// decroissante (a aires egales, plus petit indice de face d'abord). Maillage vide : nil.
+func Composantes(m *Maillage) []Composante {
 	if m == nil || len(m.Faces) == 0 {
-		return Composante{Garde: []bool{}}
+		return nil
 	}
 	parent := make([]int32, len(m.Sommets))
 	for i := range parent {
@@ -51,38 +58,69 @@ func ComposantePrincipale(m *Maillage) Composante {
 			unis(parent, f.Sommets[0], s)
 		}
 	}
-	// Aire cumulee et premiere face par racine de composante.
-	aires := make(map[int32]float64)
-	premiere := make(map[int32]int)
-	racines := make([]int32, len(m.Faces))
+	index := make(map[int32]int) // racine -> position dans comps
+	var comps []Composante
+	var premiere []int // premiere face de chaque composante, pour departager
 	for i, f := range m.Faces {
 		r := racine(parent, f.Sommets[0])
-		racines[i] = r
-		aires[r] += aireFace(m, f)
-		if _, vu := premiere[r]; !vu {
-			premiere[r] = i
+		k, vu := index[r]
+		if !vu {
+			k = len(comps)
+			index[r] = k
+			comps = append(comps, Composante{Garde: make([]bool, len(m.Faces)), Min: pointInfini(1), Max: pointInfini(-1)})
+			premiere = append(premiere, i)
+		}
+		c := &comps[k]
+		c.Garde[i] = true
+		c.Faces++
+		c.Aire += aireFace(m, f)
+		for _, s := range f.Sommets {
+			elargit(c, m.Sommets[s])
 		}
 	}
-	var gagnante int32
-	meilleure, trouve := 0.0, false
-	for r, a := range aires {
-		if !trouve || a > meilleure || (a == meilleure && premiere[r] < premiere[gagnante]) {
-			gagnante, meilleure, trouve = r, a, true
-		}
+	ordre := make([]int, len(comps))
+	for i := range ordre {
+		ordre[i] = i
 	}
-	c := Composante{Garde: make([]bool, len(m.Faces)), Autres: len(aires) - 1, Aire: meilleure}
-	for i, r := range racines {
-		if r == gagnante {
-			c.Garde[i] = true
-			c.Faces++
+	sort.SliceStable(ordre, func(a, b int) bool {
+		ca, cb := comps[ordre[a]], comps[ordre[b]]
+		if ca.Aire != cb.Aire {
+			return ca.Aire > cb.Aire
 		}
+		return premiere[ordre[a]] < premiere[ordre[b]]
+	})
+	tri := make([]Composante, len(comps))
+	for i, k := range ordre {
+		tri[i] = comps[k]
 	}
-	for r, a := range aires {
-		if r != gagnante {
-			c.AireAutres += a
-		}
+	return tri
+}
+
+// ComposantePrincipale rend la plus grande composante par aire (le premier element de
+// Composantes), avec Autres et AireAutres pour les autres. Maillage vide : Garde vide.
+func ComposantePrincipale(m *Maillage) Composante {
+	comps := Composantes(m)
+	if len(comps) == 0 {
+		return Composante{Garde: []bool{}}
+	}
+	c := comps[0]
+	c.Autres = len(comps) - 1
+	for _, autre := range comps[1:] {
+		c.AireAutres += autre.Aire
 	}
 	return c
+}
+
+// pointInfini rend un point dont les trois coordonnees valent signe * +Inf.
+func pointInfini(signe float64) Point {
+	v := signe * math.Inf(1)
+	return Point{X: v, Y: v, Z: v}
+}
+
+// elargit etend l'emprise de la composante au point p.
+func elargit(c *Composante, p Point) {
+	c.Min = Point{X: math.Min(c.Min.X, p.X), Y: math.Min(c.Min.Y, p.Y), Z: math.Min(c.Min.Z, p.Z)}
+	c.Max = Point{X: math.Max(c.Max.X, p.X), Y: math.Max(c.Max.Y, p.Y), Z: math.Max(c.Max.Z, p.Z)}
 }
 
 // TrianglesDe rend la soupe de triangles des seules faces gardees, avec la meme decoupe

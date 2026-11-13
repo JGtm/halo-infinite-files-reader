@@ -27,6 +27,9 @@ func TestComposantePrincipaleBazaar(t *testing.T) {
 	c := hinavmesh.ComposantePrincipale(mesh)
 	// Mesure : 611 faces sur 670 gardees, 16 composantes ecartees (59 faces, 52,9 m2 sur
 	// 1033,6) : de petites faces detachees dans le principal, pas un ilot de jeu.
+	if comps := hinavmesh.Composantes(mesh); len(comps) != 17 || comps[0].Aire < 980.66*0.99 || comps[0].Aire > 980.66*1.01 {
+		t.Errorf("Composantes: %d, premiere aire %.2f, 17 et 980,66 attendues", len(comps), comps[0].Aire)
+	}
 	if c.Autres != 16 || c.Faces != 611 {
 		t.Errorf("Autres=%d Faces=%d, 16 et 611 attendus", c.Autres, c.Faces)
 	}
