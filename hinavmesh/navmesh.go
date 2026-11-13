@@ -115,39 +115,53 @@ func Decode(blob []byte) (*Maillage, error) {
 		if len(region) < 8 || string(region[4:8]) != sectionTAG0 {
 			continue
 		}
-		f, err := lireFichierTag(region)
+		f, vus, err := maillagesDeRegion(region)
 		if err != nil {
 			return nil, fmt.Errorf("hinavmesh: region %d: %w", i+1, err)
 		}
-		racine, err := f.racine()
-		if err != nil {
-			return nil, fmt.Errorf("hinavmesh: region %d: %w", i+1, err)
-		}
-		if f.nomType(racine.Type) == classeNavMesh {
-			return construitMaillage(f, racine)
-		}
-		// LA RACINE N EST PAS TOUJOURS LE MAILLAGE. Sur la generation TSTR/FSTR (Absolution,
-		// Insolence), la region porte un hkaiStaticTreeNavMeshQueryMediator — un mediateur de
-		// requetes qui TIENT le maillage par un pointeur, au lieu de l exposer en racine. Le
-		// maillage est bien la, une entree ITEM plus loin. On le cherche donc par son TYPE plutot
-		// que par sa position, et on n accepte que le cas NON AMBIGU : deux hkaiNavMesh dans une
-		// meme region voudraient dire qu on ne sait pas lequel sert, et le refus vaut mieux qu un
-		// tirage au sort.
-		var vus []itemHavok
-		for _, it := range f.items {
-			if f.nomType(it.Type) == classeNavMesh {
-				vus = append(vus, it)
-			}
-		}
-		if len(vus) == 1 {
+		switch len(vus) {
+		case 0:
+			continue
+		case 1:
 			return construitMaillage(f, vus[0])
-		}
-		if len(vus) > 1 {
+		default:
+			// Deux hkaiNavMesh dans une meme region voudraient dire qu'on ne sait pas lequel
+			// sert : le refus vaut mieux qu'un tirage au sort.
 			return nil, fmt.Errorf("hinavmesh: region %d porte %d %s, impossible de choisir",
 				i+1, len(vus), classeNavMesh)
 		}
 	}
 	return nil, fmt.Errorf("hinavmesh: aucune region ne porte un %s", classeNavMesh)
+}
+
+// maillagesDeRegion lit une region fichier-tag et rend les entrees ITEM de type
+// hkaiNavMesh qu'elle porte. Commun a Decode (blob Forge) et DecodeNatif (ressource de
+// module) : un seul endroit decide comment on trouve le maillage.
+//
+// LA RACINE N'EST PAS TOUJOURS LE MAILLAGE. Sur la generation TSTR/FSTR (Absolution,
+// Insolence), la region porte un hkaiStaticTreeNavMeshQueryMediator, un mediateur de
+// requetes qui TIENT le maillage par un pointeur au lieu de l'exposer en racine. Le
+// maillage est bien la, une entree ITEM plus loin : on le cherche donc par son TYPE plutot
+// que par sa position. Quand la racine est elle-meme le maillage, elle est rendue seule.
+func maillagesDeRegion(region []byte) (*fichierTag, []itemHavok, error) {
+	f, err := lireFichierTag(region)
+	if err != nil {
+		return nil, nil, err
+	}
+	racine, err := f.racine()
+	if err != nil {
+		return nil, nil, err
+	}
+	if f.nomType(racine.Type) == classeNavMesh {
+		return f, []itemHavok{racine}, nil
+	}
+	var vus []itemHavok
+	for _, it := range f.items {
+		if f.nomType(it.Type) == classeNavMesh {
+			vus = append(vus, it)
+		}
+	}
+	return f, vus, nil
 }
 
 // construitMaillage assemble sommets, aretes et faces en un maillage exploitable.

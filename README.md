@@ -19,8 +19,24 @@ repository; versions are tagged `vX.Y.Z`.
 - `mapvar`: `Parse` decodes a Forge map variant (`.mvar`) into placed objects, positions, team
   indexes, label hashes and shapes; `DecodeRoot` reads the underlying Bond CompactBinary v2
   container; `NewVolume` gives a `Contains` test for an object's shape.
-- `hinavmesh`: `Decode` turns the `navmesh.blob` that ships with a Forge map into a polygon mesh
+- `hinavmesh`: `Decode` turns the `navmesh.blob` that ships with a Forge map, and `DecodeNatif` the mesh resource of a native map module, into a polygon mesh
   in world coordinates. Pure Go.
+
+### Native maps
+
+Native maps ship no `navmesh.blob`; their navigation mesh is baked into the map's module
+(`deploy/any/levels/multi/<map>/<map>-rtx-new.module`) as a resource without a tag group.
+`(*himodule.Module).RessourcesNavmesh(ctx)` finds it by scanning the ungrouped entries of at
+least 10 KB for the `ucsh` signature and the `hkaiNavMesh` class name (the link from the `pfnd` tag to its resource is
+not decoded), and returns them largest first: the first is the map's main mesh, any further one
+is a secondary mesh. The list is usable even when the returned `illisibles` count is above zero: it only
+counts the candidates that could not be extracted (12 of the 31 maps have some; their bytes are missing from the module file); `err` is for fatal failures only. Then
+`hinavmesh.DecodeNatif(resource)` turns the extracted bytes (a `ucsh` envelope followed by
+contiguous Havok tag files) into the same `Maillage` that `Decode` gives for a Forge map. It
+refuses a resource without the `ucsh` signature (`ErrSignatureNative`), without a tag file
+(`ErrSansRegion`), without a mesh (`ErrSansMaillage`) or with several (`ErrMaillagesMultiples`).
+Measured on the 31 modules of `any/levels/multi`: 29 carry a mesh; `sgh_interlock` and
+`academy_tutorial` do not. See `himodule/example_navmesh_test.go`.
 
 ## What it is not
 
