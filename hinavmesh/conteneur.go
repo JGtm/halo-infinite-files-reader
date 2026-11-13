@@ -1,7 +1,8 @@
-// Package hinavmesh lit le MAILLAGE DE NAVIGATION publie a cote du `.mvar` de chaque
-// carte Forge Halo Infinite (`navmesh.blob` de l'asset UGC) : la surface sur laquelle un
-// agent MARCHE. C'est ce qu'un fond de rejeu vu de dessus doit montrer, et cela ne demande
-// de retirer aucune coque. Offline-pur, sans CGO, sans dependance externe.
+// Package hinavmesh lit le MAILLAGE DE NAVIGATION des cartes Halo Infinite : la surface sur
+// laquelle un agent MARCHE. C'est ce qu'un fond de rejeu vu de dessus doit montrer, et cela ne
+// demande de retirer aucune coque. Deux sources : le `navmesh.blob` publie a cote du `.mvar`
+// de chaque carte Forge (Decode), et la ressource de maillage cuite dans le `.module` des
+// cartes natives (DecodeNatif). Offline-pur, sans CGO, sans dependance externe.
 //
 // EMBALLAGE (mesure sur Isolation 01af558d et Kiken'na df7dbf08) :
 //
@@ -21,11 +22,13 @@
 // hkaiClusterGraph, hkaiTraversalAnnotationLibrary et hkcdStaticAabbTree. La cinquieme
 // n'est pas un fichier-tag et n'est pas necessaire au fond de carte.
 //
-// COUVERTURE : `navmesh.blob` n'existe QUE pour les cartes Forge (canevas). Les cartes
-// natives du studio repondent 404 sur ce chemin — leur maillage est cuit dans les
-// `.module`, pas publie avec l'asset UGC. Le parc se partage donc en deux chaines, et
-// c'est la bonne complementarite : les cartes ou le rendu de geometrie donne une bouillie
-// illisible sont exactement celles qui portent un navmesh.
+// COUVERTURE : `navmesh.blob` n'existe QUE pour les cartes Forge (canevas) : les cartes
+// natives du studio repondent 404 sur ce chemin. Elles portent pourtant le MEME hkaiNavMesh
+// (mesure le 2026-11-13 sur 29 des 31 modules de `any/levels/multi`) : il est cuit dans une
+// ressource sans groupe du `.module` de la carte, sous une enveloppe `ucsh` et en fichiers-tag
+// Havok contigus, sans Bond ni zlib. DecodeNatif lit cette ressource (natif.go), que
+// himodule.RessourcesNavmesh repere ; Decode lit le blob Forge. Seules sgh_interlock et
+// academy_tutorial n'ont pas de maillage.
 package hinavmesh
 
 import (
