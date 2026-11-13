@@ -21,9 +21,12 @@ func ExampleModule_RessourcesNavmesh() {
 	}
 	defer m.Close()
 
-	ressources, err := m.RessourcesNavmesh(context.Background())
+	ressources, illisibles, err := m.RessourcesNavmesh(context.Background())
 	if err != nil {
-		log.Printf("some candidate resources were unreadable: %v", err) // the readable ones are still returned
+		log.Fatal(err)
+	}
+	if illisibles > 0 { // the list is still usable: these candidates just could not be extracted
+		log.Printf("%d candidate resources could not be extracted", illisibles)
 	}
 	if len(ressources) == 0 {
 		log.Fatal("this map has no navigation mesh")

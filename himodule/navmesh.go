@@ -4,13 +4,13 @@ package himodule
 //
 // Une carte native porte son `hkaiNavMesh` dans une ressource SANS groupe de son `.module`,
 // voisine du tag `pfnd`. Le lien entre ce tag et sa ressource n'est PAS decode : on repere
-// donc la ressource par son contenu (la chaine `hkaiNavMesh`, nom de la classe racine du
-// fichier-tag), parmi les entrees sans groupe d'une taille suffisante.
+// donc la ressource par son contenu (signature `ucsh` en tete et nom de classe
+// `hkaiNavMesh`), parmi les entrees sans groupe d'une taille suffisante.
 
 import (
 	"bytes"
+	"cmp"
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"slices"
@@ -22,35 +22,39 @@ const (
 	// petites ressources sans groupe : les maillages secondaires mesures font 11 a 21 Ko et
 	// sont retenus, le principal de Bazaar fait 545 828 octets.
 	seuilRessourceNavmesh = 10 << 10
+	// signatureRessourceNavmesh ouvre toute ressource de maillage de module.
+	signatureRessourceNavmesh = "ucsh"
 	// marqueNavmesh est la chaine du nom de classe presente dans toute ressource de maillage.
+	// Seule, elle est trop large : la sous-chaine matche aussi hkaiNavMeshQueryMediator et
+	// consorts, d'ou l'exigence de la signature en tete.
 	marqueNavmesh = "hkaiNavMesh"
 )
 
-// ErrRessourcesIllisibles est rendue, avec la liste des ressources lisibles, quand au moins
-// une candidate n'a pas pu etre extraite : le maillage principal pourrait en faire partie,
-// l'appelant doit donc le savoir plutot que de recevoir une liste silencieusement amputee.
-var ErrRessourcesIllisibles = errors.New("himodule: ressources candidates illisibles")
-
-// RessourcesNavmesh rend les ressources qui portent un maillage de navigation (`hkaiNavMesh`),
-// triees par taille decompressee DECROISSANTE : la premiere est le maillage principal de la
-// carte, les suivantes (quelques-unes sur chasm, va_launchsite, ridgeline) sont des
-// maillages secondaires. Une carte sans maillage (sgh_interlock, academy_tutorial) rend une
-// liste vide et aucune erreur.
+// RessourcesNavmesh rend les ressources qui portent un maillage de navigation. La liste est
+// utilisable meme quand illisibles > 0 : ce compte ne dit que combien de candidates n'ont pas
+// pu etre extraites (octets absents du fichier module sur une douzaine de cartes), pas que la
+// liste est fausse. err n'est non nil que pour un echec fatal : contexte annule, ou aucune
+// entree candidate lisible alors qu'il y en avait.
+//
+// Les ressources sont triees par taille decompressee DECROISSANTE : la premiere est le
+// maillage principal de la carte, les suivantes (quelques-unes sur chasm, va_launchsite,
+// ridgeline) sont des maillages secondaires. Une carte sans maillage (sgh_interlock,
+// academy_tutorial) rend une liste vide et aucune erreur.
 //
 // Chaque candidate (entree sans groupe, au moins seuilRessourceNavmesh octets) est extraite
-// pour en lire le contenu ; passer le resultat a Extract puis a hinavmesh.DecodeNatif.
-// Une extraction qui echoue est journalisee et comptee : la liste des ressources lisibles
-// est rendue avec une erreur enveloppant ErrRessourcesIllisibles.
-func (m *Module) RessourcesNavmesh(ctx context.Context) ([]File, error) {
-	var trouvees []File
-	illisibles := 0
+// pour en lire le contenu : elle doit commencer par `ucsh` et contenir `hkaiNavMesh`. Une
+// extraction qui echoue est journalisee en Warn et comptee dans illisibles. Passer ensuite
+// chaque File a Extract puis a hinavmesh.DecodeNatif.
+func (m *Module) RessourcesNavmesh(ctx context.Context) (ressources []File, illisibles int, err error) {
+	candidates := 0
 	for _, f := range m.Files("") {
 		if f.Group != "" || f.UncompSize < seuilRessourceNavmesh {
 			continue
 		}
 		if err := ctx.Err(); err != nil {
-			return nil, err
+			return nil, illisibles, err
 		}
+		candidates++
 		brut, err := m.Extract(f)
 		if err != nil {
 			illisibles++
@@ -58,17 +62,17 @@ func (m *Module) RessourcesNavmesh(ctx context.Context) ([]File, error) {
 				"index", f.Index, "taille", f.UncompSize, "err", err)
 			continue
 		}
-		if !bytes.Contains(brut, []byte(marqueNavmesh)) {
+		if !bytes.HasPrefix(brut, []byte(signatureRessourceNavmesh)) ||
+			!bytes.Contains(brut, []byte(marqueNavmesh)) {
 			continue
 		}
 		slog.DebugContext(ctx, "himodule: ressource de maillage de navigation",
 			"index", f.Index, "taille", f.UncompSize, "global_id", f.GlobalID)
-		trouvees = append(trouvees, f)
+		ressources = append(ressources, f)
 	}
-	slices.SortStableFunc(trouvees, func(a, b File) int { return b.UncompSize - a.UncompSize })
-	if illisibles > 0 {
-		return trouvees, fmt.Errorf("%w: %d extraction(s) echouee(s), %d ressource(s) de maillage lue(s)",
-			ErrRessourcesIllisibles, illisibles, len(trouvees))
+	slices.SortStableFunc(ressources, func(a, b File) int { return cmp.Compare(b.UncompSize, a.UncompSize) })
+	if candidates > 0 && illisibles == candidates {
+		return nil, illisibles, fmt.Errorf("himodule: les %d ressources candidates sont illisibles", candidates)
 	}
-	return trouvees, nil
+	return ressources, illisibles, nil
 }

@@ -11,7 +11,6 @@ package hinavmesh_test
 
 import (
 	"context"
-	"errors"
 	"math"
 	"os"
 	"path/filepath"
@@ -39,32 +38,26 @@ func dossierCartes(t *testing.T) string {
 }
 
 // ressourcesCarte ouvre le module d'une carte et rend ses ressources de maillage, la plus
-// grosse d'abord, avec le module (a fermer par l'appelant).
-func ressourcesCarte(t *testing.T, dossier, carte string) (*himodule.Module, []himodule.File) {
+// grosse d'abord, et le nombre de candidates non extraites. Le module est fermé en fin de test.
+func ressourcesCarte(t *testing.T, dossier, carte string) (*himodule.Module, []himodule.File, int) {
 	t.Helper()
 	m, err := himodule.Open(filepath.Join(dossier, carte, carte+"-rtx-new.module"))
 	if err != nil {
 		t.Fatalf("%s: Open: %v", carte, err)
 	}
 	t.Cleanup(func() { _ = m.Close() })
-	res, err := m.RessourcesNavmesh(context.Background())
-	switch {
-	case errors.Is(err, himodule.ErrRessourcesIllisibles):
-		// Des ressources dont les octets sont absents du fichier module (academy_weapon_drills :
-		// deux entrees sans groupe pointent apres la fin du fichier). Les lisibles sont rendues ;
-		// le test le dit au lieu de le taire.
-		t.Logf("%s: %v", carte, err)
-	case err != nil:
+	res, illisibles, err := m.RessourcesNavmesh(context.Background())
+	if err != nil {
 		t.Fatalf("%s: RessourcesNavmesh: %v", carte, err)
 	}
-	return m, res
+	return m, res, illisibles
 }
 
 func proche(a, b float64) bool { return math.Abs(a-b) <= 0.1 }
 
 func TestNatifBazaar(t *testing.T) {
 	dossier := dossierCartes(t)
-	m, res := ressourcesCarte(t, dossier, "ctf_bazaar")
+	m, res, _ := ressourcesCarte(t, dossier, "ctf_bazaar")
 	if len(res) == 0 {
 		t.Fatal("ctf_bazaar: aucune ressource de maillage")
 	}
@@ -117,9 +110,19 @@ func TestNatifBalayageCartes(t *testing.T) {
 		t.Fatalf("%d cartes sous %s, 31 attendues", len(cartes), dossier)
 	}
 	secondairesAttendus := map[string]int{"chasm": 5, "va_launchsite": 5, "ridgeline": 1}
+	// Candidates non extraites par carte : leurs octets sont absents du fichier module (erreur
+	// `bloc N hors borne`), 17 au total sur 12 cartes. Toute carte absente de la table en a 0.
+	illisiblesAttendus := map[string]int{
+		"academy_weapon_drills": 2, "btb_engine": 1, "chasm": 1, "ctf_breaker": 4,
+		"ctf_forbidden": 1, "ctf_illusion": 1, "forest": 1, "pve_house": 1,
+		"sgh_blueprint": 1, "sgh_crystalcaves": 1, "sgh_streets": 2, "va_behemoth": 1,
+	}
 	var sans []string
 	for _, carte := range cartes {
-		m, res := ressourcesCarte(t, dossier, carte)
+		m, res, illisibles := ressourcesCarte(t, dossier, carte)
+		if illisibles != illisiblesAttendus[carte] {
+			t.Errorf("%s: %d candidates illisibles, %d attendues", carte, illisibles, illisiblesAttendus[carte])
+		}
 		if len(res) == 0 {
 			sans = append(sans, carte)
 			continue

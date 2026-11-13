@@ -139,3 +139,23 @@ func TestDecodeNatifMaillagesMultiples(t *testing.T) {
 		t.Fatalf("erreur %v, ErrMaillagesMultiples attendue", err)
 	}
 }
+
+func TestDecodeNatifMasqueLesDrapeaux(t *testing.T) {
+	// Les 2 bits de poids fort du u32 d'en-tete de section sont des drapeaux : un fichier-tag
+	// valide dont l'en-tete porte 0x80000000|taille doit se decoder comme sans drapeau. Le bit 0x40000000
+	// (feuille, lu par parcoursSections) ne convient pas sur la racine : il en ferait une feuille.
+	maillage, _ := regionMaillageTemoin(t, assetNatifTemoin)
+	region := append([]byte(nil), maillage...)
+	taille := binary.BigEndian.Uint32(region)
+	if taille&masqueTailleSection != uint32(len(region)) {
+		t.Fatalf("la taille d'en-tete %d ne correspond pas a la region (%d octets)", taille&masqueTailleSection, len(region))
+	}
+	binary.BigEndian.PutUint32(region, 0x80000000|uint32(len(region)))
+	natif, err := DecodeNatif(append(enteteNatif(), region...))
+	if err != nil {
+		t.Fatalf("DecodeNatif avec drapeau: %v", err)
+	}
+	if ref := decodeTemoin(t, assetNatifTemoin); len(natif.Faces) != len(ref.Faces) {
+		t.Errorf("%d faces, %d attendues", len(natif.Faces), len(ref.Faces))
+	}
+}

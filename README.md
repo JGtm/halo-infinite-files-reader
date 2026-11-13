@@ -27,10 +27,10 @@ repository; versions are tagged `vX.Y.Z`.
 Native maps ship no `navmesh.blob`; their navigation mesh is baked into the map's module
 (`deploy/any/levels/multi/<map>/<map>-rtx-new.module`) as a resource without a tag group.
 `(*himodule.Module).RessourcesNavmesh(ctx)` finds it by scanning the ungrouped entries of at
-least 10 KB for the `hkaiNavMesh` class name (the link from the `pfnd` tag to its resource is
+least 10 KB for the `ucsh` signature and the `hkaiNavMesh` class name (the link from the `pfnd` tag to its resource is
 not decoded), and returns them largest first: the first is the map's main mesh, any further one
-is a secondary mesh. If some candidate cannot be extracted, the readable ones are still returned
-together with an error wrapping `himodule.ErrRessourcesIllisibles`. Then
+is a secondary mesh. The list is usable even when the returned `illisibles` count is above zero: it only
+counts the candidates that could not be extracted (12 of the 31 maps have some; their bytes are missing from the module file); `err` is for fatal failures only. Then
 `hinavmesh.DecodeNatif(resource)` turns the extracted bytes (a `ucsh` envelope followed by
 contiguous Havok tag files) into the same `Maillage` that `Decode` gives for a Forge map. It
 refuses a resource without the `ucsh` signature (`ErrSignatureNative`), without a tag file
